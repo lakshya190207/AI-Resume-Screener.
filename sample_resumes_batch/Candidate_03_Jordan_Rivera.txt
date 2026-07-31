@@ -1,0 +1,14 @@
+JORDAN RIVERA
+Email: jordan.rivera.dev@gmail.com | Phone: 415-987-6543
+LinkedIn: linkedin.com/in/jrivera-dev | She/Her | Graduation: 2020
+
+SUMMARY
+Software Engineer with 4 years experience building Python backends and REST APIs. Strong foundation in Docker and AWS with growing experience in PyTorch.
+
+EXPERIENCE
+Backend Engineer | DataScale Tech (2021 – Present)
+- Designed REST APIs in Python using FastAPI and Docker.
+- Integrated PostgreSQL and Redis caching layers.
+
+EDUCATION
+B.S. Software Engineering | UT Austin, 2020

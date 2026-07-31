@@ -1,0 +1,13 @@
+version: '3.8'
+
+services:
+  ai-resume-screener:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: talentmatrix-ai-screener
+    ports:
+      - "8080:80"
+    restart: always
+    environment:
+      - NODE_ENV=production
