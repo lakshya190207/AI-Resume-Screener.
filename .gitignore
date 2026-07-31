@@ -12,6 +12,10 @@ dist
 dist-ssr
 *.local
 
+# PDF files hidden from repository
+*.pdf
+sample_resumes_batch/*.pdf
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
