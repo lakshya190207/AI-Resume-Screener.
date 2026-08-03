@@ -13,18 +13,19 @@ export default function OfferLetterModal({ isOpen, onClose, candidate, jobReq })
   const matchedSkillsCount = (candidate.skillMatch?.matchedMustHaves || candidate.evaluation?.skillMatch?.matchedMustHaves || []).length;
   const matchedSkillsList = (candidate.skillMatch?.matchedMustHaves || candidate.evaluation?.skillMatch?.matchedMustHaves || []).join(', ');
 
-  // Calculate dynamic AI calibrated compensation
-  const baseRate = 135000;
-  const expBonus = yearsExp * 8500;
-  const scoreBonus = Math.max(0, Math.round(((overallScore - 60) / 40) * 35000));
-  const talentSkillBonus = matchedSkillsCount * 4000;
+  // Calculate dynamic AI calibrated compensation in INR (LPA - Lakhs Per Annum)
+  const baseRate = 1800000; // ₹18 LPA Baseline
+  const expBonus = yearsExp * 250000; // ₹2.5 Lakhs per year of experience
+  const scoreBonus = Math.max(0, Math.round(((overallScore - 60) / 40) * 600000)); // Up to ₹6 Lakhs merit bonus
+  const talentSkillBonus = matchedSkillsCount * 120000; // ₹1.2 Lakhs per matched core skill
 
   const calculatedSalaryNum = baseRate + expBonus + scoreBonus + talentSkillBonus;
-  const defaultSalaryStr = `$${calculatedSalaryNum.toLocaleString()} / year`;
+  const lpaValue = (calculatedSalaryNum / 100000).toFixed(1);
+  const defaultSalaryStr = `₹${calculatedSalaryNum.toLocaleString('en-IN')} per annum (${lpaValue} LPA)`;
 
-  // Calculated equity RSUs based on score & experience
-  const defaultEquityNum = Math.round(15000 + (overallScore * 200) + (yearsExp * 1200));
-  const defaultEquityStr = `${defaultEquityNum.toLocaleString()} RSUs (4-year vesting schedule)`;
+  // Calculated ESOPs based on score & experience
+  const defaultEsopsNum = Math.round(5000 + (overallScore * 80) + (yearsExp * 500));
+  const defaultEquityStr = `${defaultEsopsNum.toLocaleString('en-IN')} ESOP Units (4-year vesting schedule)`;
 
   const [salary, setSalary] = useState(defaultSalaryStr);
   const [startDate, setStartDate] = useState('2026-09-01');
@@ -39,43 +40,43 @@ export default function OfferLetterModal({ isOpen, onClose, candidate, jobReq })
 
   const offerLetterText = `CONFIDENTIAL & PROPRIETARY JOB OFFER LETTER
 
-Date: ${new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+Date: ${new Date().toLocaleDateString('en-IN', { month: 'long', day: 'numeric', year: 'numeric' })}
 
 Dear ${candidateName},
 
-On behalf of TalentMatrix Enterprise Systems, we are thrilled to offer you the position of ${jobTitle}. Based on your exceptional talent profile, ${yearsExp} years of relevant experience, and an outstanding candidate evaluation match score of ${overallScore}%, we believe your skills will be instrumental to our team's growth and success.
+On behalf of TalentMatrix Enterprise Systems India Pvt. Ltd., we are delighted to offer you the position of ${jobTitle}. Based on your exceptional talent profile, ${yearsExp} years of verified industry experience, and an outstanding candidate evaluation match score of ${overallScore}%, we believe your technical skills will be instrumental to our team's growth and engineering leadership.
 
-AI COMPENSATION CALIBRATION SUMMARY:
+AI COMPENSATION CALIBRATION SUMMARY (INR):
 --------------------------------------------------------------------------------
-• Candidate Match Score:  ${overallScore}% (Merit Bonus: +$${scoreBonus.toLocaleString()})
-• Verified Experience:   ${yearsExp} Years (Experience Premium: +$${expBonus.toLocaleString()})
-• Core Talents & Skills:  ${matchedSkillsCount} Must-Haves Met [${matchedSkillsList}] (Skill Premium: +$${talentSkillBonus.toLocaleString()})
+• Candidate Match Score:  ${overallScore}% (Merit Bonus: +₹${scoreBonus.toLocaleString('en-IN')})
+• Verified Experience:   ${yearsExp} Years (Experience Premium: +₹${expBonus.toLocaleString('en-IN')})
+• Core Talents & Skills:  ${matchedSkillsCount} Must-Haves Met [${matchedSkillsList}] (Skill Premium: +₹${talentSkillBonus.toLocaleString('en-IN')})
 
 OFFER DETAILS & COMPENSATION:
 --------------------------------------------------------------------------------
 Position Title:    ${jobTitle}
-Department:        Engineering & Product Development
+Department:        Engineering & Technology Development
 Reporting Manager: ${managerName}
 Target Start Date: ${startDate}
 
-COMPENSATION PACKAGE:
-• Base Salary:     ${salary}, paid on a bi-weekly schedule.
-• Equity Grant:    ${equity}, subject to Board approval and 1-year cliff vesting.
-• Performance:     Eligible for annual discretionary bonus up to 15% of base salary.
-• Benefits:        Full health, dental, vision insurance, 401(k) matching, and flexible PTO.
+COMPENSATION PACKAGE (INR):
+• Annual Base CTC: ${salary}, paid on a monthly payroll schedule.
+• Stock / ESOPs:   ${equity}, subject to Board approval and 1-year cliff vesting.
+• Performance:     Eligible for annual discretionary performance bonus up to 15% of CTC.
+• Benefits:        Comprehensive Group Health Insurance (₹5 Lakhs coverage), PF, Gratuity, and Flexible PTO.
 
-CONFIDENTIALITY & AT-WILL EMPLOYMENT:
-This offer is contingent upon successful completion of background verification. Employment with TalentMatrix Enterprise Systems is at-will.
+CONFIDENTIALITY & GOVERNING LAW:
+This offer is contingent upon background verification and reference checks. Employment is governed by the laws of India and company HR policies.
 
 ACCEPTANCE OF OFFER:
-To accept this offer, please sign and return a copy of this letter by 5:00 PM EST on ${new Date(Date.now() + 7 * 86400000).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}.
+To accept this offer, please sign and return a copy of this letter by 5:00 PM IST on ${new Date(Date.now() + 7 * 86400000).toLocaleDateString('en-IN', { month: 'long', day: 'numeric', year: 'numeric' })}.
 
-We look forward to welcoming you to the team!
+We look forward to welcoming you to TalentMatrix India!
 
 Sincerely,
 
 Talent Matrix Talent Acquisition Team
-TalentMatrix Enterprise Systems Inc.
+TalentMatrix Enterprise Systems India Pvt. Ltd.
 --------------------------------------------------------------------------------
 ACCEPTED AND AGREED:
 
@@ -121,10 +122,10 @@ Candidate Signature: ___________________________   Date: ______________`;
             </div>
             <div>
               <h3 className="text-sm font-bold text-slate-100 flex items-center space-x-1.5">
-                <span>AI Calibrated Offer Letter Generator</span>
+                <span>AI Calibrated Offer Letter (INR / ₹)</span>
                 <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
               </h3>
-              <p className="text-[11px] text-slate-400">Salary dynamically calibrated based on candidate talents, experience & match score</p>
+              <p className="text-[11px] text-slate-400">Salary dynamically calibrated in Indian Rupees (₹ LPA) based on candidate talents, experience & score</p>
             </div>
           </div>
 
@@ -139,30 +140,30 @@ Candidate Signature: ___________________________   Date: ______________`;
         {/* Modal Body */}
         <div className="p-5 flex-1 overflow-y-auto space-y-5">
           
-          {/* AI Compensation Rationale Card */}
+          {/* AI Compensation Rationale Card in INR */}
           <div className="p-3.5 rounded-lg bg-slate-950 border border-emerald-500/30 space-y-2">
             <div className="flex items-center justify-between text-xs">
               <span className="font-bold text-emerald-400 flex items-center space-x-1.5">
                 <Calculator className="w-4 h-4 text-emerald-400" />
-                <span>AI Salary Calibration Rationale</span>
+                <span>AI INR Salary Calibration Rationale</span>
               </span>
-              <span className="text-[10px] text-slate-400 font-mono">Role Baseline: $135,000</span>
+              <span className="text-[10px] text-slate-400 font-mono">Role Baseline: ₹18.0 LPA</span>
             </div>
 
             <div className="grid grid-cols-3 gap-2 text-xs font-mono pt-1">
               <div className="p-2 rounded bg-slate-900 border border-slate-800">
                 <span className="text-slate-500 text-[10px] block">EXP DEPTH ({yearsExp} YRS)</span>
-                <strong className="text-sky-400">+${expBonus.toLocaleString()}</strong>
+                <strong className="text-sky-400">+₹{expBonus.toLocaleString('en-IN')}</strong>
               </div>
 
               <div className="p-2 rounded bg-slate-900 border border-slate-800">
                 <span className="text-slate-500 text-[10px] block">MERIT SCORE ({overallScore}%)</span>
-                <strong className="text-emerald-400">+${scoreBonus.toLocaleString()}</strong>
+                <strong className="text-emerald-400">+₹{scoreBonus.toLocaleString('en-IN')}</strong>
               </div>
 
               <div className="p-2 rounded bg-slate-900 border border-slate-800">
                 <span className="text-slate-500 text-[10px] block">TALENTS ({matchedSkillsCount} SKILLS)</span>
-                <strong className="text-purple-400">+${talentSkillBonus.toLocaleString()}</strong>
+                <strong className="text-purple-400">+₹{talentSkillBonus.toLocaleString('en-IN')}</strong>
               </div>
             </div>
           </div>
@@ -170,7 +171,7 @@ Candidate Signature: ___________________________   Date: ______________`;
           {/* Compensation Controls */}
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 bg-slate-950 p-3.5 rounded-lg border border-slate-800">
             <div>
-              <label className="text-[11px] font-bold text-slate-400 block mb-1">Calibrated Base Salary</label>
+              <label className="text-[11px] font-bold text-slate-400 block mb-1">Calibrated Base Salary (INR)</label>
               <input
                 type="text"
                 value={salary}
@@ -190,7 +191,7 @@ Candidate Signature: ___________________________   Date: ______________`;
             </div>
 
             <div>
-              <label className="text-[11px] font-bold text-slate-400 block mb-1">Calibrated Equity RSUs</label>
+              <label className="text-[11px] font-bold text-slate-400 block mb-1">Calibrated ESOP Units</label>
               <input
                 type="text"
                 value={equity}
@@ -213,7 +214,7 @@ Candidate Signature: ___________________________   Date: ______________`;
           {/* Letter Preview Box */}
           <div className="space-y-2">
             <div className="flex justify-between items-center text-xs text-slate-400">
-              <span className="font-bold text-slate-300 uppercase tracking-wider text-[10px]">Formatted Offer Letter Preview</span>
+              <span className="font-bold text-slate-300 uppercase tracking-wider text-[10px]">Formatted Indian Offer Letter Preview</span>
               <span>Candidate Match: <strong className="text-emerald-400">{overallScore}% Score</strong></span>
             </div>
 
@@ -228,7 +229,7 @@ Candidate Signature: ___________________________   Date: ______________`;
 
         {/* Footer Actions */}
         <div className="p-4 border-t border-slate-800 bg-slate-950 flex items-center justify-between">
-          <span className="text-xs text-slate-500 font-medium">Ready to send to selected candidate</span>
+          <span className="text-xs text-slate-500 font-medium">Ready to send to selected candidate (INR Compensation)</span>
 
           <div className="flex items-center space-x-2">
             <button
