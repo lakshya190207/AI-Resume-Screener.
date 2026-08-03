@@ -7,7 +7,7 @@ export default function OfferLetterModal({ isOpen, onClose, candidate, jobReq })
   const candidateName = candidate.name ? candidate.name.split('/')[0].trim() : (candidate.fileName || 'Candidate');
   const jobTitle = jobReq?.title || 'Senior Software Engineer';
 
-  // Extract score, experience & talents
+  // Extract experience & talents (Merit score bonus excluded per directive)
   const overallScore = candidate.scores?.overall ?? candidate.evaluation?.scores?.overall ?? 85;
   const yearsExp = candidate.candidateFeatures?.yearsExperience ?? candidate.evaluation?.candidateFeatures?.yearsExperience ?? 5;
   const matchedSkillsCount = (candidate.skillMatch?.matchedMustHaves || candidate.evaluation?.skillMatch?.matchedMustHaves || []).length;
@@ -31,17 +31,16 @@ export default function OfferLetterModal({ isOpen, onClose, candidate, jobReq })
     tierLabel = "Staff / Principal Architect (10+ Yrs)";
   }
 
-  // Realistic Indian Market Salary Multipliers
+  // Realistic Indian Market Salary Multipliers (Strictly Experience + Skills, Zero Merit Increases)
   const expBonus = yearsExp * 120000; // ₹1.2 Lakhs per year of experience
-  const scoreBonus = Math.max(0, Math.round(((overallScore - 60) / 40) * 450000)); // Up to ₹4.5 Lakhs merit bonus
   const talentSkillBonus = matchedSkillsCount * 80000; // ₹80,000 per matched core skill
 
-  const calculatedSalaryNum = baseRate + expBonus + scoreBonus + talentSkillBonus;
+  const calculatedSalaryNum = baseRate + expBonus + talentSkillBonus;
   const lpaValue = (calculatedSalaryNum / 100000).toFixed(2);
   const defaultSalaryStr = `₹${calculatedSalaryNum.toLocaleString('en-IN')} per annum (${lpaValue} LPA)`;
 
   // ESOP Units scaled to Indian startup/tech market
-  const defaultEsopsNum = Math.round(2000 + (overallScore * 50) + (yearsExp * 300));
+  const defaultEsopsNum = Math.round(2000 + (yearsExp * 400));
   const defaultEquityStr = `${defaultEsopsNum.toLocaleString('en-IN')} ESOP Units (4-year vesting schedule)`;
 
   const [salary, setSalary] = useState(defaultSalaryStr);
@@ -62,13 +61,12 @@ Date: ${new Date().toLocaleDateString('en-IN', { month: 'long', day: 'numeric', 
 
 Dear ${candidateName},
 
-On behalf of TalentMatrix Enterprise Systems India Pvt. Ltd., we are delighted to offer you the position of ${jobTitle}. Based on your technical background, ${yearsExp} years of verified experience, and an outstanding candidate evaluation match score of ${overallScore}%, we believe your skills align perfectly with Indian Tech Market benchmarks for this position.
+On behalf of TalentMatrix Enterprise Systems India Pvt. Ltd., we are delighted to offer you the position of ${jobTitle}. Based on your technical background, ${yearsExp} years of verified experience, and matched core technical competencies, we believe your skills align perfectly with Indian Tech Market benchmarks for this position.
 
-INDIAN TECH MARKET SALARY CALIBRATION SUMMARY:
+INDIAN TECH MARKET SALARY CALIBRATION SUMMARY (EXCLUDING MERIT INCREASES):
 --------------------------------------------------------------------------------
 • Market Tier Baseline: ${tierLabel} (Base CTC: ₹${(baseRate/100000).toFixed(1)} LPA)
 • Experience Increment: ${yearsExp} Years (+₹${expBonus.toLocaleString('en-IN')})
-• Merit Match Score:    ${overallScore}% Match (+₹${scoreBonus.toLocaleString('en-IN')})
 • Core Talents & Skills:  ${matchedSkillsCount} Skills Met [${matchedSkillsList}] (+₹${talentSkillBonus.toLocaleString('en-IN')})
 
 OFFER DETAILS & COMPENSATION:
@@ -144,7 +142,7 @@ Candidate Signature: ___________________________   Date: ______________`;
                 <span>Indian Tech Market Calibrated Offer Letter</span>
                 <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
               </h3>
-              <p className="text-[11px] text-slate-400">Salary benchmarked against Indian IT & Tech market standards (LPA in ₹)</p>
+              <p className="text-[11px] text-slate-400">Salary benchmarked strictly on experience & core talents (Merit increases excluded)</p>
             </div>
           </div>
 
@@ -159,29 +157,24 @@ Candidate Signature: ___________________________   Date: ______________`;
         {/* Modal Body */}
         <div className="p-5 flex-1 overflow-y-auto space-y-5">
           
-          {/* AI Indian Market Compensation Rationale Card */}
+          {/* AI Indian Market Compensation Rationale Card (No Merit Increases) */}
           <div className="p-3.5 rounded-lg bg-slate-950 border border-emerald-500/30 space-y-2">
             <div className="flex items-center justify-between text-xs">
               <span className="font-bold text-emerald-400 flex items-center space-x-1.5">
                 <Calculator className="w-4 h-4 text-emerald-400" />
-                <span>Indian Tech Market Calibration ({tierLabel})</span>
+                <span>Indian Market Calibration ({tierLabel})</span>
               </span>
               <span className="text-[10px] text-slate-400 font-mono">Market Base: ₹{(baseRate/100000).toFixed(1)} LPA</span>
             </div>
 
-            <div className="grid grid-cols-3 gap-2 text-xs font-mono pt-1">
+            <div className="grid grid-cols-2 gap-3 text-xs font-mono pt-1">
               <div className="p-2 rounded bg-slate-900 border border-slate-800">
-                <span className="text-slate-500 text-[10px] block">EXP ({yearsExp} YRS)</span>
+                <span className="text-slate-500 text-[10px] block">EXP INCREMENT ({yearsExp} YRS)</span>
                 <strong className="text-sky-400">+₹{expBonus.toLocaleString('en-IN')}</strong>
               </div>
 
               <div className="p-2 rounded bg-slate-900 border border-slate-800">
-                <span className="text-slate-500 text-[10px] block">MERIT ({overallScore}%)</span>
-                <strong className="text-emerald-400">+₹{scoreBonus.toLocaleString('en-IN')}</strong>
-              </div>
-
-              <div className="p-2 rounded bg-slate-900 border border-slate-800">
-                <span className="text-slate-500 text-[10px] block">TALENTS ({matchedSkillsCount} SKILLS)</span>
+                <span className="text-slate-500 text-[10px] block">TALENT & SKILL PREMIUM ({matchedSkillsCount} SKILLS)</span>
                 <strong className="text-purple-400">+₹{talentSkillBonus.toLocaleString('en-IN')}</strong>
               </div>
             </div>
@@ -248,7 +241,7 @@ Candidate Signature: ___________________________   Date: ______________`;
 
         {/* Footer Actions */}
         <div className="p-4 border-t border-slate-800 bg-slate-950 flex items-center justify-between">
-          <span className="text-xs text-slate-500 font-medium">Calibrated against Indian Tech Market Standards</span>
+          <span className="text-xs text-slate-500 font-medium">Calibrated strictly on Experience & Talents (No Merit Increases)</span>
 
           <div className="flex items-center space-x-2">
             <button
