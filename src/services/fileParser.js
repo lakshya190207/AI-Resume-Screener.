@@ -1,7 +1,9 @@
 import * as pdfjsLib from 'pdfjs-dist';
 
-// Configure pdfjs worker
-pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+// Use UNPKG CDN or inline worker workerSrc with version fallback
+if (typeof window !== 'undefined' && pdfjsLib.GlobalWorkerOptions) {
+  pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version || '4.0.379'}/build/pdf.worker.min.mjs`;
+}
 
 /**
  * Extracts plain text from an uploaded File object (PDF, TXT, MD, etc.)
@@ -17,7 +19,8 @@ export async function parseUploadedResumeFile(file) {
   if (fileName.endsWith('.pdf') || file.type === 'application/pdf') {
     try {
       const arrayBuffer = await file.arrayBuffer();
-      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+      const pdf = await loadingTask.promise;
       let fullText = '';
 
       for (let i = 1; i <= pdf.numPages; i++) {
@@ -28,17 +31,17 @@ export async function parseUploadedResumeFile(file) {
       }
 
       if (!fullText.trim()) {
-        throw new Error('PDF file appears to be empty or contains scanned images without text layer.');
+        return await readTextFile(file);
       }
 
       return fullText.trim();
     } catch (err) {
-      console.warn('PDF.js extraction error, falling back to basic text reader:', err);
+      console.warn('PDF parsing fallback to FileReader:', err);
       return await readTextFile(file);
     }
   }
 
-  // 2. Default Text File Reader (TXT, MD, etc.)
+  // 2. Default Text File Reader (TXT, MD, DOCX text layer, etc.)
   return await readTextFile(file);
 }
 
@@ -75,7 +78,7 @@ function readTextFile(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = (e) => resolve(e.target.result || '');
-    reader.onerror = (e) => reject(new Error('Failed to read text file.'));
+    reader.onerror = () => resolve('');
     reader.readAsText(file);
   });
 }

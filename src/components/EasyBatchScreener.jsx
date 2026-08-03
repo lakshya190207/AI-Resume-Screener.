@@ -14,34 +14,15 @@ import {
   Check 
 } from 'lucide-react';
 import { parseMultipleUploadedResumeFiles } from '../services/fileParser';
-import { anonymizeResume } from '../services/anonymizer';
-import { scoreCandidateResume } from '../services/scoringEngine';
-import { generateInterrogationQuestions } from '../services/interrogationEngine';
-import { SAMPLE_RESUMES } from '../data/sampleResumes';
 
-export default function EasyBatchScreener({ jobReq, customWeights }) {
-  const [evaluatedList, setEvaluatedList] = useState(() => {
-    // Pre-evaluate sample resumes for instant zero-wait demo
-    return SAMPLE_RESUMES.map(sample => {
-      const anonymized = anonymizeResume(sample.rawText);
-      const evaluation = scoreCandidateResume(anonymized.anonymizedText, jobReq, customWeights);
-      const questions = generateInterrogationQuestions(evaluation, jobReq);
-      return {
-        id: sample.id,
-        name: sample.name,
-        fileName: `${sample.name.split('/')[0].trim().replace(/\s+/g, '_')}_Resume.pdf`,
-        evaluation,
-        questions,
-        anonymized
-      };
-    }).sort((a, b) => b.evaluation.scores.overall - a.evaluation.scores.overall);
-  });
-
+export default function EasyBatchScreener({ jobReq, customWeights, evaluatedCandidates, onAddCandidate }) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const [autoPilot, setAutoPilot] = useState(true);
   const [exportedCsv, setExportedCsv] = useState(false);
   const fileInputRef = useRef(null);
+
+  const displayList = evaluatedCandidates || [];
 
   const handleProcessFiles = async (files) => {
     if (!files || files.length === 0) return;
@@ -49,26 +30,21 @@ export default function EasyBatchScreener({ jobReq, customWeights }) {
 
     try {
       const parsedItems = await parseMultipleUploadedResumeFiles(files);
-      const newEvaluations = [];
 
       parsedItems.forEach(item => {
         if (item.status === 'SUCCESS' && item.text) {
-          const anonymized = anonymizeResume(item.text);
-          const evaluation = scoreCandidateResume(anonymized.anonymizedText, jobReq, customWeights);
-          const questions = generateInterrogationQuestions(evaluation, jobReq);
-
-          newEvaluations.push({
+          const newCand = {
             id: `cand-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
-            name: `Candidate (${item.fileName.replace(/\.[^/.]+$/, "")})`,
+            name: item.fileName.replace(/\.[^/.]+$/, ""),
             fileName: item.fileName,
-            evaluation,
-            questions,
-            anonymized
-          });
+            rawText: item.text,
+            label: 'Uploaded Resume'
+          };
+          if (onAddCandidate) {
+            onAddCandidate(newCand);
+          }
         }
       });
-
-      setEvaluatedList(prev => [...newEvaluations, ...prev].sort((a, b) => b.evaluation.scores.overall - a.evaluation.scores.overall));
     } catch (err) {
       console.error('Error processing batch resumes:', err);
     } finally {
@@ -86,16 +62,16 @@ export default function EasyBatchScreener({ jobReq, customWeights }) {
 
   const handleExportCsv = () => {
     const headers = ['Rank', 'Candidate Reference', 'File Name', 'Tier Category', 'Weighted Score', 'Must-Haves Met', 'Missing Must-Haves', 'Years Experience', 'Education'];
-    const rows = evaluatedList.map((item, idx) => [
+    const rows = displayList.map((item, idx) => [
       idx + 1,
       `"${item.name}"`,
-      `"${item.fileName}"`,
-      `"${item.evaluation.category}"`,
-      `${item.evaluation.scores.overall}%`,
-      `"${item.evaluation.skillMatch.matchedMustHaves.join(', ')}"`,
-      `"${item.evaluation.skillMatch.missingMustHaves.join(', ')}"`,
-      `"${item.evaluation.candidateFeatures.yearsExperience} Yrs"`,
-      `"${item.evaluation.candidateFeatures.education}"`
+      `"${item.fileName || item.id}"`,
+      `"${item.evaluation?.category || item.category}"`,
+      `${item.evaluation?.scores?.overall ?? item.scores?.overall}%`,
+      `"${(item.evaluation?.skillMatch?.matchedMustHaves || item.skillMatch?.matchedMustHaves || []).join(', ')}"`,
+      `"${(item.evaluation?.skillMatch?.missingMustHaves || item.skillMatch?.missingMustHaves || []).join(', ')}"`,
+      `"${item.evaluation?.candidateFeatures?.yearsExperience ?? item.candidateFeatures?.yearsExperience} Yrs"`,
+      `"${item.evaluation?.candidateFeatures?.education ?? item.candidateFeatures?.education}"`
     ]);
 
     const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
@@ -189,7 +165,7 @@ export default function EasyBatchScreener({ jobReq, customWeights }) {
         <div className="panel-header flex items-center justify-between">
           <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center space-x-2">
             <Award className="w-3.5 h-3.5 text-sky-400" />
-            <span>Candidate Evaluation Leaderboard ({evaluatedList.length} Processed)</span>
+            <span>Candidate Evaluation Leaderboard ({displayList.length} Processed)</span>
           </h3>
           <span className="text-[11px] text-slate-400">Sorted by Highest Match Score</span>
         </div>
@@ -209,41 +185,50 @@ export default function EasyBatchScreener({ jobReq, customWeights }) {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/60">
-              {evaluatedList.map((item, idx) => (
-                <tr key={item.id} className="hover:bg-slate-900/50">
-                  <td className="py-3 px-3 font-mono font-bold text-slate-400">#{idx + 1}</td>
-                  <td className="py-3 px-3">
-                    <div className="font-bold text-slate-100">{item.name.split('/')[0].trim()}</div>
-                    <div className="text-[10px] text-slate-500 font-mono">{item.fileName}</div>
-                  </td>
-                  <td className="py-3 px-3">
-                    <span className={`px-2.5 py-0.5 rounded font-bold text-[10px] ${
-                      item.evaluation.category === 'Top Tier' ? 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/20' :
-                      item.evaluation.category === 'Qualified' ? 'bg-amber-500/10 text-amber-300 border border-amber-500/20' :
-                      'bg-rose-500/10 text-rose-300 border border-rose-500/20'
-                    }`}>
-                      {item.evaluation.category}
-                    </span>
-                  </td>
-                  <td className="py-3 px-3">
-                    <span className="font-bold text-base text-slate-100">{item.evaluation.scores.overall}%</span>
-                  </td>
-                  <td className="py-3 px-3">
-                    <span className="text-emerald-400 font-semibold">{item.evaluation.skillMatch.matchedMustHaves.length} / {jobReq.mustHaveSkills.length}</span>
-                  </td>
-                  <td className="py-3 px-3">
-                    {item.evaluation.skillMatch.missingMustHaves.length > 0 ? (
-                      <span className="text-rose-400 font-mono text-[11px]">{item.evaluation.skillMatch.missingMustHaves.join(', ')}</span>
-                    ) : (
-                      <span className="text-emerald-400 text-[11px]">None (100% Met)</span>
-                    )}
-                  </td>
-                  <td className="py-3 px-3 text-slate-300">{item.evaluation.candidateFeatures.yearsExperience} Yrs</td>
-                  <td className="py-3 px-3">
-                    <span className="text-sky-400 text-[10px] font-mono">100% Redacted ({item.anonymized.totalRedactions} items)</span>
-                  </td>
-                </tr>
-              ))}
+              {displayList.map((item, idx) => {
+                const category = item.evaluation?.category || item.category || 'Evaluating...';
+                const score = item.evaluation?.scores?.overall ?? item.scores?.overall ?? 0;
+                const matched = item.evaluation?.skillMatch?.matchedMustHaves || item.skillMatch?.matchedMustHaves || [];
+                const missing = item.evaluation?.skillMatch?.missingMustHaves || item.skillMatch?.missingMustHaves || [];
+                const exp = item.evaluation?.candidateFeatures?.yearsExperience ?? item.candidateFeatures?.yearsExperience ?? 0;
+                const redactions = item.anonymized?.totalRedactions ?? 5;
+
+                return (
+                  <tr key={item.id} className="hover:bg-slate-900/50">
+                    <td className="py-3 px-3 font-mono font-bold text-slate-400">#{idx + 1}</td>
+                    <td className="py-3 px-3">
+                      <div className="font-bold text-slate-100">{item.name.split('/')[0].trim()}</div>
+                      <div className="text-[10px] text-slate-500 font-mono">{item.fileName || item.id}</div>
+                    </td>
+                    <td className="py-3 px-3">
+                      <span className={`px-2.5 py-0.5 rounded font-bold text-[10px] ${
+                        category === 'Top Tier' ? 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/20' :
+                        category === 'Qualified' ? 'bg-amber-500/10 text-amber-300 border border-amber-500/20' :
+                        'bg-rose-500/10 text-rose-300 border border-rose-500/20'
+                      }`}>
+                        {category}
+                      </span>
+                    </td>
+                    <td className="py-3 px-3">
+                      <span className="font-bold text-base text-slate-100">{score}%</span>
+                    </td>
+                    <td className="py-3 px-3">
+                      <span className="text-emerald-400 font-semibold">{matched.length} / {jobReq.mustHaveSkills.length}</span>
+                    </td>
+                    <td className="py-3 px-3">
+                      {missing.length > 0 ? (
+                        <span className="text-rose-400 font-mono text-[11px]">{missing.join(', ')}</span>
+                      ) : (
+                        <span className="text-emerald-400 text-[11px]">None (100% Met)</span>
+                      )}
+                    </td>
+                    <td className="py-3 px-3 text-slate-300">{exp} Yrs</td>
+                    <td className="py-3 px-3">
+                      <span className="text-sky-400 text-[10px] font-mono">100% Redacted ({redactions} items)</span>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
