@@ -12,6 +12,7 @@ import DatabaseSyncConsole from './components/DatabaseSyncConsole';
 import EasyBatchScreener from './components/EasyBatchScreener';
 import PreflightDeploymentConsole from './components/PreflightDeploymentConsole';
 import CreateJobModal from './components/CreateJobModal';
+import OfferLetterModal from './components/OfferLetterModal';
 import ToastNotification from './components/ToastNotification';
 
 import { INITIAL_JOB_REQUISITIONS } from './services/baselineTemplate';
@@ -27,6 +28,7 @@ export default function App() {
   const [jobReqs, setJobReqs] = useState(INITIAL_JOB_REQUISITIONS);
   const [activeJobId, setActiveJobId] = useState(INITIAL_JOB_REQUISITIONS[0].id);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [offerModalState, setOfferModalState] = useState({ isOpen: false, candidate: null });
   const [toasts, setToasts] = useState([]);
 
   // Central raw candidate store
@@ -94,11 +96,9 @@ export default function App() {
   const handleAddCandidate = (newCand) => {
     setRawCandidates(prev => [{ ...newCand, isRejected: false }, ...prev]);
 
-    // Calculate score for notification
     const anonymized = anonymizeResume(newCand.rawText);
     const evaluation = scoreCandidateResume(anonymized.anonymizedText, activeJobReq, activeJobReq.defaultWeights);
     
-    // Trigger animated toast notification!
     addNotificationToast(
       newCand.name || newCand.fileName, 
       `Resume Uploaded & Screened • Score: ${evaluation.scores.overall}% (${evaluation.category})`, 
@@ -122,6 +122,10 @@ export default function App() {
     setRawCandidates(prev => prev.filter(c => c.id !== candidateId));
 
     addNotificationToast(candidateName, 'Candidate permanently purged from database.', 'delete');
+  };
+
+  const handleOpenOfferModal = (candidate) => {
+    setOfferModalState({ isOpen: true, candidate });
   };
 
   const handleSaveJobReq = (updatedJobReq) => {
@@ -171,6 +175,7 @@ export default function App() {
             onAddCandidate={handleAddCandidate}
             onRejectCandidate={handleRejectCandidate}
             onDeleteCandidate={handleDeleteCandidate}
+            onGenerateOffer={handleOpenOfferModal}
           />
         )}
 
@@ -206,6 +211,7 @@ export default function App() {
             onAddCandidate={handleAddCandidate}
             onRejectCandidate={handleRejectCandidate}
             onDeleteCandidate={handleDeleteCandidate}
+            onGenerateOffer={handleOpenOfferModal}
           />
         )}
 
@@ -216,6 +222,7 @@ export default function App() {
             candidatesList={evaluatedCandidates}
             onRejectCandidate={handleRejectCandidate}
             onDeleteCandidate={handleDeleteCandidate}
+            onGenerateOffer={handleOpenOfferModal}
           />
         )}
 
@@ -258,6 +265,14 @@ export default function App() {
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
         onCreateJob={handleCreateJob}
+      />
+
+      {/* Offer Letter Generator Modal */}
+      <OfferLetterModal
+        isOpen={offerModalState.isOpen}
+        onClose={() => setOfferModalState({ isOpen: false, candidate: null })}
+        candidate={offerModalState.candidate}
+        jobReq={activeJobReq}
       />
 
       {/* Footer */}
