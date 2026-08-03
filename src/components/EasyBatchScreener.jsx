@@ -9,13 +9,20 @@ import {
   Sparkles, 
   Loader2, 
   FileText, 
-  ArrowUpDown, 
-  Play, 
+  Ban, 
+  Trash2, 
   Check 
 } from 'lucide-react';
 import { parseMultipleUploadedResumeFiles } from '../services/fileParser';
 
-export default function EasyBatchScreener({ jobReq, customWeights, evaluatedCandidates, onAddCandidate }) {
+export default function EasyBatchScreener({ 
+  jobReq, 
+  customWeights, 
+  evaluatedCandidates, 
+  onAddCandidate,
+  onRejectCandidate,
+  onDeleteCandidate 
+}) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const [autoPilot, setAutoPilot] = useState(true);
@@ -66,12 +73,12 @@ export default function EasyBatchScreener({ jobReq, customWeights, evaluatedCand
       idx + 1,
       `"${item.name}"`,
       `"${item.fileName || item.id}"`,
-      `"${item.evaluation?.category || item.category}"`,
-      `${item.evaluation?.scores?.overall ?? item.scores?.overall}%`,
-      `"${(item.evaluation?.skillMatch?.matchedMustHaves || item.skillMatch?.matchedMustHaves || []).join(', ')}"`,
-      `"${(item.evaluation?.skillMatch?.missingMustHaves || item.skillMatch?.missingMustHaves || []).join(', ')}"`,
-      `"${item.evaluation?.candidateFeatures?.yearsExperience ?? item.candidateFeatures?.yearsExperience} Yrs"`,
-      `"${item.evaluation?.candidateFeatures?.education ?? item.candidateFeatures?.education}"`
+      `"${item.category || item.evaluation?.category}"`,
+      `${item.scores?.overall ?? item.evaluation?.scores?.overall}%`,
+      `"${(item.skillMatch?.matchedMustHaves || item.evaluation?.skillMatch?.matchedMustHaves || []).join(', ')}"`,
+      `"${(item.skillMatch?.missingMustHaves || item.evaluation?.skillMatch?.missingMustHaves || []).join(', ')}"`,
+      `"${item.candidateFeatures?.yearsExperience ?? item.evaluation?.candidateFeatures?.yearsExperience} Yrs"`,
+      `"${item.candidateFeatures?.education ?? item.evaluation?.candidateFeatures?.education}"`
     ]);
 
     const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
@@ -98,7 +105,7 @@ export default function EasyBatchScreener({ jobReq, customWeights, evaluatedCand
           </div>
           <h2 className="text-lg font-bold text-slate-100 tracking-tight">Effortless Batch Resume Evaluation & Leaderboard</h2>
           <p className="text-xs text-slate-400 mt-0.5">
-            Drop multiple resume files at once. Automatically anonymizes PII, calculates scores, ranks candidates, and exports spreadsheets.
+            Drop multiple resume files at once. Automatically anonymizes PII, calculates scores, ranks candidates, and manages rejections & database deletion.
           </p>
         </div>
 
@@ -181,17 +188,17 @@ export default function EasyBatchScreener({ jobReq, customWeights, evaluatedCand
                 <th className="py-2.5 px-3">Must-Haves Met</th>
                 <th className="py-2.5 px-3">Missing Gaps</th>
                 <th className="py-2.5 px-3">Experience</th>
-                <th className="py-2.5 px-3">Pii Status</th>
+                <th className="py-2.5 px-3 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/60">
               {displayList.map((item, idx) => {
-                const category = item.evaluation?.category || item.category || 'Evaluating...';
-                const score = item.evaluation?.scores?.overall ?? item.scores?.overall ?? 0;
-                const matched = item.evaluation?.skillMatch?.matchedMustHaves || item.skillMatch?.matchedMustHaves || [];
-                const missing = item.evaluation?.skillMatch?.missingMustHaves || item.skillMatch?.missingMustHaves || [];
-                const exp = item.evaluation?.candidateFeatures?.yearsExperience ?? item.candidateFeatures?.yearsExperience ?? 0;
-                const redactions = item.anonymized?.totalRedactions ?? 5;
+                const category = item.category || item.evaluation?.category || 'Evaluating...';
+                const score = item.scores?.overall ?? item.evaluation?.scores?.overall ?? 0;
+                const matched = item.skillMatch?.matchedMustHaves || item.evaluation?.skillMatch?.matchedMustHaves || [];
+                const missing = item.skillMatch?.missingMustHaves || item.evaluation?.skillMatch?.missingMustHaves || [];
+                const exp = item.candidateFeatures?.yearsExperience ?? item.evaluation?.candidateFeatures?.yearsExperience ?? 0;
+                const isRejected = item.isRejected || category.includes('Rejected');
 
                 return (
                   <tr key={item.id} className="hover:bg-slate-900/50">
@@ -202,6 +209,7 @@ export default function EasyBatchScreener({ jobReq, customWeights, evaluatedCand
                     </td>
                     <td className="py-3 px-3">
                       <span className={`px-2.5 py-0.5 rounded font-bold text-[10px] ${
+                        isRejected ? 'bg-rose-950 text-rose-400 border border-rose-800' :
                         category === 'Top Tier' ? 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/20' :
                         category === 'Qualified' ? 'bg-amber-500/10 text-amber-300 border border-amber-500/20' :
                         'bg-rose-500/10 text-rose-300 border border-rose-500/20'
@@ -223,8 +231,30 @@ export default function EasyBatchScreener({ jobReq, customWeights, evaluatedCand
                       )}
                     </td>
                     <td className="py-3 px-3 text-slate-300">{exp} Yrs</td>
-                    <td className="py-3 px-3">
-                      <span className="text-sky-400 text-[10px] font-mono">100% Redacted ({redactions} items)</span>
+                    
+                    {/* Actions Col: Reject & Delete */}
+                    <td className="py-3 px-3 text-right">
+                      <div className="flex items-center justify-end space-x-1.5">
+                        {!isRejected && (
+                          <button
+                            onClick={() => onRejectCandidate && onRejectCandidate(item.id)}
+                            className="px-2 py-1 rounded bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[11px] font-bold flex items-center space-x-1 transition-colors cursor-pointer"
+                            title="Reject Candidate Directly"
+                          >
+                            <Ban className="w-3 h-3 text-amber-400" />
+                            <span>Reject</span>
+                          </button>
+                        )}
+
+                        <button
+                          onClick={() => onDeleteCandidate && onDeleteCandidate(item.id)}
+                          className="px-2 py-1 rounded bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 text-[11px] font-bold flex items-center space-x-1 transition-colors cursor-pointer"
+                          title="Purge Candidate from Database"
+                        >
+                          <Trash2 className="w-3 h-3 text-rose-400" />
+                          <span>Delete</span>
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );
