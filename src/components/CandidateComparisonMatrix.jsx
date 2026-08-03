@@ -1,20 +1,32 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Columns, CheckCircle2, XCircle, Award, ArrowUpDown, ChevronRight } from 'lucide-react';
 import { SAMPLE_RESUMES } from '../data/sampleResumes';
 import { scoreCandidateResume } from '../services/scoringEngine';
 
-export default function CandidateComparisonMatrix({ jobReq, customWeights }) {
-  const [selectedCandidateIds, setSelectedCandidateIds] = useState(['sample-01', 'sample-02']);
+export default function CandidateComparisonMatrix({ jobReq, customWeights, candidatesList }) {
+  // Use passed candidatesList if available, else evaluate SAMPLE_RESUMES
+  const evaluatedCandidates = (candidatesList && candidatesList.length > 0)
+    ? candidatesList
+    : SAMPLE_RESUMES.map(sample => {
+        const evaluation = scoreCandidateResume(sample.rawText, jobReq, customWeights);
+        return {
+          id: sample.id,
+          name: sample.name,
+          label: sample.label || sample.fileName || 'Sample Candidate',
+          ...evaluation
+        };
+      });
 
-  const evaluatedCandidates = SAMPLE_RESUMES.map(sample => {
-    const evaluation = scoreCandidateResume(sample.rawText, jobReq, customWeights);
-    return {
-      id: sample.id,
-      name: sample.name,
-      label: sample.label,
-      ...evaluation
-    };
-  });
+  const [selectedCandidateIds, setSelectedCandidateIds] = useState(() => 
+    evaluatedCandidates.slice(0, 2).map(c => c.id)
+  );
+
+  // Sync selected candidates if evaluatedCandidates change
+  useEffect(() => {
+    if (selectedCandidateIds.length === 0 && evaluatedCandidates.length > 0) {
+      setSelectedCandidateIds(evaluatedCandidates.slice(0, 2).map(c => c.id));
+    }
+  }, [evaluatedCandidates]);
 
   const activeCandidates = evaluatedCandidates.filter(c => selectedCandidateIds.includes(c.id));
 
@@ -43,9 +55,10 @@ export default function CandidateComparisonMatrix({ jobReq, customWeights }) {
 
         {/* Candidate Selectors */}
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs text-slate-400 font-medium">Select Candidates:</span>
+          <span className="text-xs text-slate-400 font-medium">Select Candidates (Max 4):</span>
           {evaluatedCandidates.map(c => {
             const isSelected = selectedCandidateIds.includes(c.id);
+            const displayName = c.name ? c.name.split('/')[0].trim() : (c.fileName || c.id);
             return (
               <button
                 key={c.id}
@@ -56,7 +69,7 @@ export default function CandidateComparisonMatrix({ jobReq, customWeights }) {
                     : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-slate-200'
                 }`}
               >
-                {c.name.split('/')[0].trim()}
+                {displayName}
               </button>
             );
           })}
@@ -71,8 +84,8 @@ export default function CandidateComparisonMatrix({ jobReq, customWeights }) {
               <th className="p-4 font-bold text-slate-400 uppercase tracking-wider w-48">Evaluation Metric</th>
               {activeCandidates.map(c => (
                 <th key={c.id} className="p-4 font-bold text-slate-100 min-w-[220px]">
-                  <div className="text-sm">{c.name}</div>
-                  <div className="text-[11px] text-slate-400 font-normal">{c.label}</div>
+                  <div className="text-sm">{c.name ? c.name.split('/')[0].trim() : c.fileName}</div>
+                  <div className="text-[11px] text-slate-400 font-normal">{c.label || c.fileName}</div>
                 </th>
               ))}
             </tr>
@@ -81,97 +94,124 @@ export default function CandidateComparisonMatrix({ jobReq, customWeights }) {
             {/* Category Tier Row */}
             <tr>
               <td className="p-4 font-bold text-slate-300 bg-slate-950/40">Tier Classification</td>
-              {activeCandidates.map(c => (
-                <td key={c.id} className="p-4">
-                  <span className={`px-2.5 py-1 rounded font-bold text-xs ${
-                    c.category === 'Top Tier' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
-                    c.category === 'Qualified' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' :
-                    'bg-rose-500/10 text-rose-400 border border-rose-500/20'
-                  }`}>
-                    {c.category}
-                  </span>
-                </td>
-              ))}
+              {activeCandidates.map(c => {
+                const category = c.category || c.evaluation?.category || 'Evaluating...';
+                return (
+                  <td key={c.id} className="p-4">
+                    <span className={`px-2.5 py-1 rounded font-bold text-xs ${
+                      category === 'Top Tier' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
+                      category === 'Qualified' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' :
+                      'bg-rose-500/10 text-rose-400 border border-rose-500/20'
+                    }`}>
+                      {category}
+                    </span>
+                  </td>
+                );
+              })}
             </tr>
 
             {/* Overall Weighted Score */}
             <tr>
               <td className="p-4 font-bold text-slate-300 bg-slate-950/40">Weighted Overall Score</td>
-              {activeCandidates.map(c => (
-                <td key={c.id} className="p-4 font-bold text-base text-slate-100">
-                  {c.scores.overall} / 100
-                </td>
-              ))}
+              {activeCandidates.map(c => {
+                const score = c.scores?.overall ?? c.evaluation?.scores?.overall ?? 0;
+                return (
+                  <td key={c.id} className="p-4 font-bold text-base text-slate-100">
+                    {score} / 100
+                  </td>
+                );
+              })}
             </tr>
 
             {/* Must-Haves Coverage */}
             <tr>
               <td className="p-4 font-bold text-slate-300 bg-slate-950/40">Must-Haves Coverage</td>
-              {activeCandidates.map(c => (
-                <td key={c.id} className="p-4">
-                  <div className="font-bold text-emerald-400 mb-1">{c.scores.mustHaves}%</div>
-                  <div className="flex flex-wrap gap-1">
-                    {c.skillMatch.matchedMustHaves.map((s, idx) => (
-                      <span key={idx} className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-300 border border-emerald-500/20">
-                        ✓ {s}
-                      </span>
-                    ))}
-                    {c.skillMatch.missingMustHaves.map((s, idx) => (
-                      <span key={idx} className="text-[10px] px-1.5 py-0.5 rounded bg-rose-500/10 text-rose-300 border border-rose-500/20">
-                        ✗ {s}
-                      </span>
-                    ))}
-                  </div>
-                </td>
-              ))}
+              {activeCandidates.map(c => {
+                const mustScore = c.scores?.mustHaves ?? c.evaluation?.scores?.mustHaves ?? 0;
+                const matched = c.skillMatch?.matchedMustHaves || c.evaluation?.skillMatch?.matchedMustHaves || [];
+                const missing = c.skillMatch?.missingMustHaves || c.evaluation?.skillMatch?.missingMustHaves || [];
+                return (
+                  <td key={c.id} className="p-4">
+                    <div className="font-bold text-emerald-400 mb-1">{mustScore}%</div>
+                    <div className="flex flex-wrap gap-1">
+                      {matched.map((s, idx) => (
+                        <span key={idx} className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-300 border border-emerald-500/20">
+                          ✓ {s}
+                        </span>
+                      ))}
+                      {missing.map((s, idx) => (
+                        <span key={idx} className="text-[10px] px-1.5 py-0.5 rounded bg-rose-500/10 text-rose-300 border border-rose-500/20">
+                          ✗ {s}
+                        </span>
+                      ))}
+                    </div>
+                  </td>
+                );
+              })}
             </tr>
 
             {/* Nice-To-Haves Bonus */}
             <tr>
               <td className="p-4 font-bold text-slate-300 bg-slate-950/40">Nice-To-Haves Bonus</td>
-              {activeCandidates.map(c => (
-                <td key={c.id} className="p-4">
-                  <div className="font-bold text-sky-400 mb-1">{c.scores.niceToHaves}%</div>
-                  <div className="text-[11px] text-slate-400">
-                    Matched: {c.skillMatch.matchedNiceToHaves.join(', ') || 'None'}
-                  </div>
-                </td>
-              ))}
+              {activeCandidates.map(c => {
+                const niceScore = c.scores?.niceToHaves ?? c.evaluation?.scores?.niceToHaves ?? 0;
+                const matchedNice = c.skillMatch?.matchedNiceToHaves || c.evaluation?.skillMatch?.matchedNiceToHaves || [];
+                return (
+                  <td key={c.id} className="p-4">
+                    <div className="font-bold text-sky-400 mb-1">{niceScore}%</div>
+                    <div className="text-[11px] text-slate-400">
+                      Matched: {matchedNice.join(', ') || 'None'}
+                    </div>
+                  </td>
+                );
+              })}
             </tr>
 
             {/* Experience Depth */}
             <tr>
               <td className="p-4 font-bold text-slate-300 bg-slate-950/40">Experience Depth</td>
-              {activeCandidates.map(c => (
-                <td key={c.id} className="p-4">
-                  <div className="font-bold text-slate-200">{c.candidateFeatures.yearsExperience} Years</div>
-                  <div className="text-[11px] text-slate-400">Score: {c.scores.experience}%</div>
-                </td>
-              ))}
+              {activeCandidates.map(c => {
+                const expYears = c.candidateFeatures?.yearsExperience ?? c.evaluation?.candidateFeatures?.yearsExperience ?? 0;
+                const expScore = c.scores?.experience ?? c.evaluation?.scores?.experience ?? 0;
+                return (
+                  <td key={c.id} className="p-4">
+                    <div className="font-bold text-slate-200">{expYears} Years</div>
+                    <div className="text-[11px] text-slate-400">Score: {expScore}%</div>
+                  </td>
+                );
+              })}
             </tr>
 
             {/* Education Degree */}
             <tr>
               <td className="p-4 font-bold text-slate-300 bg-slate-950/40">Education Degree</td>
-              {activeCandidates.map(c => (
-                <td key={c.id} className="p-4">
-                  <div className="font-bold text-slate-200">{c.candidateFeatures.education}</div>
-                  <div className="text-[11px] text-slate-400">Score: {c.scores.education}%</div>
-                </td>
-              ))}
+              {activeCandidates.map(c => {
+                const edu = c.candidateFeatures?.education ?? c.evaluation?.candidateFeatures?.education ?? 'B.S.';
+                const eduScore = c.scores?.education ?? c.evaluation?.scores?.education ?? 0;
+                return (
+                  <td key={c.id} className="p-4">
+                    <div className="font-bold text-slate-200">{edu}</div>
+                    <div className="text-[11px] text-slate-400">Score: {eduScore}%</div>
+                  </td>
+                );
+              })}
             </tr>
 
             {/* Historical Trajectory */}
             <tr>
               <td className="p-4 font-bold text-slate-300 bg-slate-950/40">Historical Trajectory Match</td>
-              {activeCandidates.map(c => (
-                <td key={c.id} className="p-4">
-                  <div className="font-bold text-purple-400">{c.scores.trajectory}%</div>
-                  <div className="text-[11px] text-slate-400 truncate max-w-[200px]" title={c.trajectoryAnalysis.explanation}>
-                    {c.trajectoryAnalysis.explanation}
-                  </div>
-                </td>
-              ))}
+              {activeCandidates.map(c => {
+                const trajScore = c.scores?.trajectory ?? c.evaluation?.scores?.trajectory ?? 0;
+                const explanation = c.trajectoryAnalysis?.explanation ?? c.evaluation?.trajectoryAnalysis?.explanation ?? 'Baseline match';
+                return (
+                  <td key={c.id} className="p-4">
+                    <div className="font-bold text-purple-400">{trajScore}%</div>
+                    <div className="text-[11px] text-slate-400 truncate max-w-[200px]" title={explanation}>
+                      {explanation}
+                    </div>
+                  </td>
+                );
+              })}
             </tr>
           </tbody>
         </table>

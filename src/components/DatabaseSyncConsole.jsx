@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Database, RefreshCw, CheckCircle2, Play, Pause, Server, Lock, ArrowUpRight, Filter, AlertCircle } from 'lucide-react';
 import { COMPANY_DATABASE_RECORDS, DATABASE_CONNECTOR_CONFIGS, executeDatabaseSyncPipeline } from '../services/databaseSyncEngine';
 
-export default function DatabaseSyncConsole({ jobReq, customWeights }) {
+export default function DatabaseSyncConsole({ jobReq, customWeights, onAddCandidate }) {
   const [dbRecords, setDbRecords] = useState(COMPANY_DATABASE_RECORDS);
   const [activeConnector, setActiveConnector] = useState('postgres');
   const [autoSyncEnabled, setAutoSyncEnabled] = useState(false);
@@ -14,6 +14,20 @@ export default function DatabaseSyncConsole({ jobReq, customWeights }) {
 
   const handleManualSync = () => {
     const result = executeDatabaseSyncPipeline(dbRecords, jobReq, customWeights);
+    
+    // Add screened records to global candidate list
+    result.updatedRecords.forEach(r => {
+      if (r.status === 'SCREENED' && onAddCandidate) {
+        onAddCandidate({
+          id: r.candidate_id,
+          name: r.applicant_name,
+          fileName: `DB_Ingested_${r.candidate_id}.pdf`,
+          rawText: r.raw_resume_text,
+          label: 'Company DB Ingestion'
+        });
+      }
+    });
+
     setDbRecords(result.updatedRecords);
     setSyncLogs(prev => [...result.syncLogs, ...prev]);
     setLastSyncedAt(new Date().toLocaleTimeString());

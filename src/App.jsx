@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import Navbar from './components/Navbar';
 import DashboardView from './components/DashboardView';
 import JobBaselineEditor from './components/JobBaselineEditor';
@@ -14,6 +14,10 @@ import PreflightDeploymentConsole from './components/PreflightDeploymentConsole'
 import CreateJobModal from './components/CreateJobModal';
 
 import { INITIAL_JOB_REQUISITIONS } from './services/baselineTemplate';
+import { SAMPLE_RESUMES } from './data/sampleResumes';
+import { anonymizeResume } from './services/anonymizer';
+import { scoreCandidateResume } from './services/scoringEngine';
+import { generateInterrogationQuestions } from './services/interrogationEngine';
 import { calculateWeightRecalibration, SAMPLE_HITL_REVIEWS } from './services/hitlFeedback';
 import { executeFairnessAudit, ISOLATED_DEMOGRAPHIC_VAULT } from './services/fairnessAuditor';
 
@@ -23,10 +27,46 @@ export default function App() {
   const [activeJobId, setActiveJobId] = useState(INITIAL_JOB_REQUISITIONS[0].id);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
+  // Central raw candidate store (sample resumes + user uploaded files)
+  const [rawCandidates, setRawCandidates] = useState(() => {
+    return SAMPLE_RESUMES.map(sample => ({
+      id: sample.id,
+      name: sample.name,
+      fileName: `${sample.name.split('/')[0].trim().replace(/\s+/g, '_')}_Resume.pdf`,
+      rawText: sample.rawText,
+      label: sample.label
+    }));
+  });
+
   const activeJobReq = jobReqs.find(j => j.id === activeJobId) || jobReqs[0];
+
+  // Dynamically re-evaluate ALL candidates whenever active job req or weights change
+  const evaluatedCandidates = useMemo(() => {
+    return rawCandidates.map(c => {
+      const anonymized = anonymizeResume(c.rawText);
+      const evaluation = scoreCandidateResume(anonymized.anonymizedText, activeJobReq, activeJobReq.defaultWeights);
+      const questions = generateInterrogationQuestions(evaluation, activeJobReq);
+      return {
+        ...c,
+        anonymized,
+        evaluation,
+        questions,
+        // Top-level score & category properties for unified component consumption
+        category: evaluation.category,
+        scores: evaluation.scores,
+        skillMatch: evaluation.skillMatch,
+        candidateFeatures: evaluation.candidateFeatures,
+        trajectoryAnalysis: evaluation.trajectoryAnalysis
+      };
+    }).sort((a, b) => b.evaluation.scores.overall - a.evaluation.scores.overall);
+  }, [rawCandidates, activeJobReq]);
 
   const fairnessReport = executeFairnessAudit(ISOLATED_DEMOGRAPHIC_VAULT);
   const hitlSummary = calculateWeightRecalibration(SAMPLE_HITL_REVIEWS, activeJobReq.defaultWeights);
+
+  const handleAddCandidate = (newCand) => {
+    setRawCandidates(prev => [newCand, ...prev]);
+  };
 
   const handleSaveJobReq = (updatedJobReq) => {
     setJobReqs(prev => prev.map(j => j.id === updatedJobReq.id ? updatedJobReq : j));
@@ -68,6 +108,8 @@ export default function App() {
           <EasyBatchScreener
             jobReq={activeJobReq}
             customWeights={activeJobReq.defaultWeights}
+            evaluatedCandidates={evaluatedCandidates}
+            onAddCandidate={handleAddCandidate}
           />
         )}
 
@@ -84,6 +126,7 @@ export default function App() {
           <DatabaseSyncConsole
             jobReq={activeJobReq}
             customWeights={activeJobReq.defaultWeights}
+            onAddCandidate={handleAddCandidate}
           />
         )}
 
@@ -99,6 +142,7 @@ export default function App() {
           <ResumeScreenerLab
             jobReq={activeJobReq}
             customWeights={activeJobReq.defaultWeights}
+            onAddCandidate={handleAddCandidate}
           />
         )}
 
@@ -106,6 +150,7 @@ export default function App() {
           <CandidateComparisonMatrix
             jobReq={activeJobReq}
             customWeights={activeJobReq.defaultWeights}
+            candidatesList={evaluatedCandidates}
           />
         )}
 
