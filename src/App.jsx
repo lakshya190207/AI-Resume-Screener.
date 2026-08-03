@@ -12,6 +12,7 @@ import DatabaseSyncConsole from './components/DatabaseSyncConsole';
 import EasyBatchScreener from './components/EasyBatchScreener';
 import PreflightDeploymentConsole from './components/PreflightDeploymentConsole';
 import CreateJobModal from './components/CreateJobModal';
+import ToastNotification from './components/ToastNotification';
 
 import { INITIAL_JOB_REQUISITIONS } from './services/baselineTemplate';
 import { SAMPLE_RESUMES } from './data/sampleResumes';
@@ -26,8 +27,9 @@ export default function App() {
   const [jobReqs, setJobReqs] = useState(INITIAL_JOB_REQUISITIONS);
   const [activeJobId, setActiveJobId] = useState(INITIAL_JOB_REQUISITIONS[0].id);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [toasts, setToasts] = useState([]);
 
-  // Central raw candidate store (sample resumes + user uploaded files)
+  // Central raw candidate store
   const [rawCandidates, setRawCandidates] = useState(() => {
     return SAMPLE_RESUMES.map(sample => ({
       id: sample.id,
@@ -51,7 +53,6 @@ export default function App() {
         anonymized,
         evaluation,
         questions,
-        // Top-level score & category properties for unified component consumption
         category: evaluation.category,
         scores: evaluation.scores,
         skillMatch: evaluation.skillMatch,
@@ -64,8 +65,34 @@ export default function App() {
   const fairnessReport = executeFairnessAudit(ISOLATED_DEMOGRAPHIC_VAULT);
   const hitlSummary = calculateWeightRecalibration(SAMPLE_HITL_REVIEWS, activeJobReq.defaultWeights);
 
+  const addToast = (candidateName, score, category) => {
+    const newToast = {
+      id: `toast-${Date.now()}-${Math.random()}`,
+      candidateName,
+      score,
+      category
+    };
+    setToasts(prev => [newToast, ...prev].slice(0, 4));
+
+    // Auto dismiss after 4 seconds
+    setTimeout(() => {
+      setToasts(prev => prev.filter(t => t.id !== newToast.id));
+    }, 4000);
+  };
+
+  const handleDismissToast = (id) => {
+    setToasts(prev => prev.filter(t => t.id !== id));
+  };
+
   const handleAddCandidate = (newCand) => {
     setRawCandidates(prev => [newCand, ...prev]);
+
+    // Calculate score for notification
+    const anonymized = anonymizeResume(newCand.rawText);
+    const evaluation = scoreCandidateResume(anonymized.anonymizedText, activeJobReq, activeJobReq.defaultWeights);
+    
+    // Trigger animated toast notification!
+    addToast(newCand.name || newCand.fileName, evaluation.scores.overall, evaluation.category);
   };
 
   const handleSaveJobReq = (updatedJobReq) => {
@@ -90,7 +117,10 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0b0e14] text-slate-100 font-sans selection:bg-sky-500 selection:text-slate-950 flex flex-col">
+    <div className="min-h-screen bg-[#0b0e14] text-slate-100 font-sans selection:bg-sky-500 selection:text-slate-950 flex flex-col relative">
+      {/* Floating Animated Toast Notifications */}
+      <ToastNotification toasts={toasts} onDismiss={handleDismissToast} />
+
       {/* Top Navbar */}
       <Navbar
         activeTab={activeTab}
