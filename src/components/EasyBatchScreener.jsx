@@ -11,7 +11,8 @@ import {
   FileText, 
   Ban, 
   Trash2, 
-  Check 
+  Check,
+  FileCheck
 } from 'lucide-react';
 import { parseMultipleUploadedResumeFiles } from '../services/fileParser';
 
@@ -21,7 +22,8 @@ export default function EasyBatchScreener({
   evaluatedCandidates, 
   onAddCandidate,
   onRejectCandidate,
-  onDeleteCandidate 
+  onDeleteCandidate,
+  onGenerateOffer
 }) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [dragActive, setDragActive] = useState(false);
@@ -105,7 +107,7 @@ export default function EasyBatchScreener({
           </div>
           <h2 className="text-lg font-bold text-slate-100 tracking-tight">Effortless Batch Resume Evaluation & Leaderboard</h2>
           <p className="text-xs text-slate-400 mt-0.5">
-            Drop multiple resume files at once. Automatically anonymizes PII, calculates scores, ranks candidates, and manages rejections & database deletion.
+            Drop multiple resume files at once. Automatically anonymizes PII, calculates scores, ranks candidates, and generates official offer letters.
           </p>
         </div>
 
@@ -232,9 +234,20 @@ export default function EasyBatchScreener({
                     </td>
                     <td className="py-3 px-3 text-slate-300">{exp} Yrs</td>
                     
-                    {/* Actions Col: Reject & Delete */}
+                    {/* Actions Col: Generate Offer, Reject & Delete */}
                     <td className="py-3 px-3 text-right">
                       <div className="flex items-center justify-end space-x-1.5">
+                        {!isRejected && (
+                          <button
+                            onClick={() => onGenerateOffer && onGenerateOffer(item)}
+                            className="px-2 py-1 rounded bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[11px] font-bold flex items-center space-x-1 transition-colors cursor-pointer"
+                            title="Generate Official Offer Letter"
+                          >
+                            <FileCheck className="w-3 h-3 text-emerald-400" />
+                            <span>Offer Letter</span>
+                          </button>
+                        )}
+
                         {!isRejected && (
                           <button
                             onClick={() => onRejectCandidate && onRejectCandidate(item.id)}
