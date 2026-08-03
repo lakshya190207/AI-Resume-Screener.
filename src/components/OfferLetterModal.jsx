@@ -1,17 +1,41 @@
-import React, { useState } from 'react';
-import { FileText, Copy, Download, Check, X, Award, DollarSign, Calendar, Sparkles } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { FileText, Copy, Download, Check, X, Award, DollarSign, Calendar, Sparkles, Sliders, Calculator } from 'lucide-react';
 
 export default function OfferLetterModal({ isOpen, onClose, candidate, jobReq }) {
   if (!isOpen || !candidate) return null;
 
-  const [salary, setSalary] = useState('$165,000 / year');
+  const candidateName = candidate.name ? candidate.name.split('/')[0].trim() : (candidate.fileName || 'Candidate');
+  const jobTitle = jobReq?.title || 'Senior Software Engineer';
+
+  // Extract score, experience & talents
+  const overallScore = candidate.scores?.overall ?? candidate.evaluation?.scores?.overall ?? 85;
+  const yearsExp = candidate.candidateFeatures?.yearsExperience ?? candidate.evaluation?.candidateFeatures?.yearsExperience ?? 5;
+  const matchedSkillsCount = (candidate.skillMatch?.matchedMustHaves || candidate.evaluation?.skillMatch?.matchedMustHaves || []).length;
+  const matchedSkillsList = (candidate.skillMatch?.matchedMustHaves || candidate.evaluation?.skillMatch?.matchedMustHaves || []).join(', ');
+
+  // Calculate dynamic AI calibrated compensation
+  const baseRate = 135000;
+  const expBonus = yearsExp * 8500;
+  const scoreBonus = Math.max(0, Math.round(((overallScore - 60) / 40) * 35000));
+  const talentSkillBonus = matchedSkillsCount * 4000;
+
+  const calculatedSalaryNum = baseRate + expBonus + scoreBonus + talentSkillBonus;
+  const defaultSalaryStr = `$${calculatedSalaryNum.toLocaleString()} / year`;
+
+  // Calculated equity RSUs based on score & experience
+  const defaultEquityNum = Math.round(15000 + (overallScore * 200) + (yearsExp * 1200));
+  const defaultEquityStr = `${defaultEquityNum.toLocaleString()} RSUs (4-year vesting schedule)`;
+
+  const [salary, setSalary] = useState(defaultSalaryStr);
   const [startDate, setStartDate] = useState('2026-09-01');
-  const [equity, setEquity] = useState('25,000 RSUs (4-year vesting schedule)');
+  const [equity, setEquity] = useState(defaultEquityStr);
   const [managerName, setManagerName] = useState('Director of Engineering');
   const [copied, setCopied] = useState(false);
 
-  const candidateName = candidate.name ? candidate.name.split('/')[0].trim() : (candidate.fileName || 'Candidate');
-  const jobTitle = jobReq?.title || 'Senior Software Engineer';
+  useEffect(() => {
+    setSalary(defaultSalaryStr);
+    setEquity(defaultEquityStr);
+  }, [candidate]);
 
   const offerLetterText = `CONFIDENTIAL & PROPRIETARY JOB OFFER LETTER
 
@@ -19,7 +43,13 @@ Date: ${new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', 
 
 Dear ${candidateName},
 
-On behalf of TalentMatrix Enterprise Systems, we are thrilled to offer you the position of ${jobTitle}. Based on your exceptional background, technical competency, and outstanding performance throughout our recruitment evaluation, we believe your skills will be instrumental to our team's continued growth and success.
+On behalf of TalentMatrix Enterprise Systems, we are thrilled to offer you the position of ${jobTitle}. Based on your exceptional talent profile, ${yearsExp} years of relevant experience, and an outstanding candidate evaluation match score of ${overallScore}%, we believe your skills will be instrumental to our team's growth and success.
+
+AI COMPENSATION CALIBRATION SUMMARY:
+--------------------------------------------------------------------------------
+• Candidate Match Score:  ${overallScore}% (Merit Bonus: +$${scoreBonus.toLocaleString()})
+• Verified Experience:   ${yearsExp} Years (Experience Premium: +$${expBonus.toLocaleString()})
+• Core Talents & Skills:  ${matchedSkillsCount} Must-Haves Met [${matchedSkillsList}] (Skill Premium: +$${talentSkillBonus.toLocaleString()})
 
 OFFER DETAILS & COMPENSATION:
 --------------------------------------------------------------------------------
@@ -91,10 +121,10 @@ Candidate Signature: ___________________________   Date: ______________`;
             </div>
             <div>
               <h3 className="text-sm font-bold text-slate-100 flex items-center space-x-1.5">
-                <span>Job Offer Letter Generator</span>
+                <span>AI Calibrated Offer Letter Generator</span>
                 <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
               </h3>
-              <p className="text-[11px] text-slate-400">Generate, customize & copy official job offer for {candidateName}</p>
+              <p className="text-[11px] text-slate-400">Salary dynamically calibrated based on candidate talents, experience & match score</p>
             </div>
           </div>
 
@@ -109,15 +139,43 @@ Candidate Signature: ___________________________   Date: ______________`;
         {/* Modal Body */}
         <div className="p-5 flex-1 overflow-y-auto space-y-5">
           
+          {/* AI Compensation Rationale Card */}
+          <div className="p-3.5 rounded-lg bg-slate-950 border border-emerald-500/30 space-y-2">
+            <div className="flex items-center justify-between text-xs">
+              <span className="font-bold text-emerald-400 flex items-center space-x-1.5">
+                <Calculator className="w-4 h-4 text-emerald-400" />
+                <span>AI Salary Calibration Rationale</span>
+              </span>
+              <span className="text-[10px] text-slate-400 font-mono">Role Baseline: $135,000</span>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2 text-xs font-mono pt-1">
+              <div className="p-2 rounded bg-slate-900 border border-slate-800">
+                <span className="text-slate-500 text-[10px] block">EXP DEPTH ({yearsExp} YRS)</span>
+                <strong className="text-sky-400">+${expBonus.toLocaleString()}</strong>
+              </div>
+
+              <div className="p-2 rounded bg-slate-900 border border-slate-800">
+                <span className="text-slate-500 text-[10px] block">MERIT SCORE ({overallScore}%)</span>
+                <strong className="text-emerald-400">+${scoreBonus.toLocaleString()}</strong>
+              </div>
+
+              <div className="p-2 rounded bg-slate-900 border border-slate-800">
+                <span className="text-slate-500 text-[10px] block">TALENTS ({matchedSkillsCount} SKILLS)</span>
+                <strong className="text-purple-400">+${talentSkillBonus.toLocaleString()}</strong>
+              </div>
+            </div>
+          </div>
+
           {/* Compensation Controls */}
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 bg-slate-950 p-3.5 rounded-lg border border-slate-800">
             <div>
-              <label className="text-[11px] font-bold text-slate-400 block mb-1">Base Salary</label>
+              <label className="text-[11px] font-bold text-slate-400 block mb-1">Calibrated Base Salary</label>
               <input
                 type="text"
                 value={salary}
                 onChange={(e) => setSalary(e.target.value)}
-                className="w-full bg-slate-900 border border-slate-800 rounded px-2.5 py-1 text-xs text-slate-200 font-semibold focus:outline-none focus:border-sky-500"
+                className="w-full bg-slate-900 border border-slate-800 rounded px-2.5 py-1 text-xs text-emerald-400 font-bold focus:outline-none focus:border-sky-500"
               />
             </div>
 
@@ -132,7 +190,7 @@ Candidate Signature: ___________________________   Date: ______________`;
             </div>
 
             <div>
-              <label className="text-[11px] font-bold text-slate-400 block mb-1">Equity / Stock</label>
+              <label className="text-[11px] font-bold text-slate-400 block mb-1">Calibrated Equity RSUs</label>
               <input
                 type="text"
                 value={equity}
@@ -156,7 +214,7 @@ Candidate Signature: ___________________________   Date: ______________`;
           <div className="space-y-2">
             <div className="flex justify-between items-center text-xs text-slate-400">
               <span className="font-bold text-slate-300 uppercase tracking-wider text-[10px]">Formatted Offer Letter Preview</span>
-              <span>Candidate Match: <strong className="text-emerald-400">{candidate.scores?.overall || 88}% Score</strong></span>
+              <span>Candidate Match: <strong className="text-emerald-400">{overallScore}% Score</strong></span>
             </div>
 
             <textarea
