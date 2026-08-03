@@ -1,10 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { Columns, CheckCircle2, XCircle, Award, ArrowUpDown, ChevronRight } from 'lucide-react';
+import { Columns, CheckCircle2, XCircle, Award, ArrowUpDown, ChevronRight, Ban, Trash2 } from 'lucide-react';
 import { SAMPLE_RESUMES } from '../data/sampleResumes';
 import { scoreCandidateResume } from '../services/scoringEngine';
 
-export default function CandidateComparisonMatrix({ jobReq, customWeights, candidatesList }) {
-  // Use passed candidatesList if available, else evaluate SAMPLE_RESUMES
+export default function CandidateComparisonMatrix({ 
+  jobReq, 
+  customWeights, 
+  candidatesList,
+  onRejectCandidate,
+  onDeleteCandidate 
+}) {
   const evaluatedCandidates = (candidatesList && candidatesList.length > 0)
     ? candidatesList
     : SAMPLE_RESUMES.map(sample => {
@@ -21,7 +26,6 @@ export default function CandidateComparisonMatrix({ jobReq, customWeights, candi
     evaluatedCandidates.slice(0, 2).map(c => c.id)
   );
 
-  // Sync selected candidates if evaluatedCandidates change
   useEffect(() => {
     if (selectedCandidateIds.length === 0 && evaluatedCandidates.length > 0) {
       setSelectedCandidateIds(evaluatedCandidates.slice(0, 2).map(c => c.id));
@@ -99,6 +103,7 @@ export default function CandidateComparisonMatrix({ jobReq, customWeights, candi
                 return (
                   <td key={c.id} className="p-4">
                     <span className={`px-2.5 py-1 rounded font-bold text-xs ${
+                      category.includes('Rejected') ? 'bg-rose-950 text-rose-400 border border-rose-800' :
                       category === 'Top Tier' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
                       category === 'Qualified' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' :
                       'bg-rose-500/10 text-rose-400 border border-rose-500/20'
@@ -150,23 +155,6 @@ export default function CandidateComparisonMatrix({ jobReq, customWeights, candi
               })}
             </tr>
 
-            {/* Nice-To-Haves Bonus */}
-            <tr>
-              <td className="p-4 font-bold text-slate-300 bg-slate-950/40">Nice-To-Haves Bonus</td>
-              {activeCandidates.map(c => {
-                const niceScore = c.scores?.niceToHaves ?? c.evaluation?.scores?.niceToHaves ?? 0;
-                const matchedNice = c.skillMatch?.matchedNiceToHaves || c.evaluation?.skillMatch?.matchedNiceToHaves || [];
-                return (
-                  <td key={c.id} className="p-4">
-                    <div className="font-bold text-sky-400 mb-1">{niceScore}%</div>
-                    <div className="text-[11px] text-slate-400">
-                      Matched: {matchedNice.join(', ') || 'None'}
-                    </div>
-                  </td>
-                );
-              })}
-            </tr>
-
             {/* Experience Depth */}
             <tr>
               <td className="p-4 font-bold text-slate-300 bg-slate-950/40">Experience Depth</td>
@@ -182,32 +170,32 @@ export default function CandidateComparisonMatrix({ jobReq, customWeights, candi
               })}
             </tr>
 
-            {/* Education Degree */}
+            {/* Quick Actions Row */}
             <tr>
-              <td className="p-4 font-bold text-slate-300 bg-slate-950/40">Education Degree</td>
+              <td className="p-4 font-bold text-slate-300 bg-slate-950/40">Recruiter Actions</td>
               {activeCandidates.map(c => {
-                const edu = c.candidateFeatures?.education ?? c.evaluation?.candidateFeatures?.education ?? 'B.S.';
-                const eduScore = c.scores?.education ?? c.evaluation?.scores?.education ?? 0;
-                return (
-                  <td key={c.id} className="p-4">
-                    <div className="font-bold text-slate-200">{edu}</div>
-                    <div className="text-[11px] text-slate-400">Score: {eduScore}%</div>
-                  </td>
-                );
-              })}
-            </tr>
+                const isRejected = c.isRejected || (c.category && c.category.includes('Rejected'));
 
-            {/* Historical Trajectory */}
-            <tr>
-              <td className="p-4 font-bold text-slate-300 bg-slate-950/40">Historical Trajectory Match</td>
-              {activeCandidates.map(c => {
-                const trajScore = c.scores?.trajectory ?? c.evaluation?.scores?.trajectory ?? 0;
-                const explanation = c.trajectoryAnalysis?.explanation ?? c.evaluation?.trajectoryAnalysis?.explanation ?? 'Baseline match';
                 return (
                   <td key={c.id} className="p-4">
-                    <div className="font-bold text-purple-400">{trajScore}%</div>
-                    <div className="text-[11px] text-slate-400 truncate max-w-[200px]" title={explanation}>
-                      {explanation}
+                    <div className="flex items-center space-x-2">
+                      {!isRejected && (
+                        <button
+                          onClick={() => onRejectCandidate && onRejectCandidate(c.id)}
+                          className="px-2.5 py-1 rounded bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 font-bold text-xs flex items-center space-x-1 transition-colors cursor-pointer"
+                        >
+                          <Ban className="w-3 h-3 text-amber-400" />
+                          <span>Reject</span>
+                        </button>
+                      )}
+
+                      <button
+                        onClick={() => onDeleteCandidate && onDeleteCandidate(c.id)}
+                        className="px-2.5 py-1 rounded bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 font-bold text-xs flex items-center space-x-1 transition-colors cursor-pointer"
+                      >
+                        <Trash2 className="w-3 h-3 text-rose-400" />
+                        <span>Purge DB</span>
+                      </button>
                     </div>
                   </td>
                 );

@@ -36,7 +36,8 @@ export default function App() {
       name: sample.name,
       fileName: `${sample.name.split('/')[0].trim().replace(/\s+/g, '_')}_Resume.pdf`,
       rawText: sample.rawText,
-      label: sample.label
+      label: sample.label,
+      isRejected: false
     }));
   });
 
@@ -48,12 +49,18 @@ export default function App() {
       const anonymized = anonymizeResume(c.rawText);
       const evaluation = scoreCandidateResume(anonymized.anonymizedText, activeJobReq, activeJobReq.defaultWeights);
       const questions = generateInterrogationQuestions(evaluation, activeJobReq);
+
+      const category = c.isRejected ? 'Rejected by Recruiter' : evaluation.category;
+
       return {
         ...c,
         anonymized,
-        evaluation,
+        evaluation: {
+          ...evaluation,
+          category
+        },
         questions,
-        category: evaluation.category,
+        category,
         scores: evaluation.scores,
         skillMatch: evaluation.skillMatch,
         candidateFeatures: evaluation.candidateFeatures,
@@ -65,12 +72,12 @@ export default function App() {
   const fairnessReport = executeFairnessAudit(ISOLATED_DEMOGRAPHIC_VAULT);
   const hitlSummary = calculateWeightRecalibration(SAMPLE_HITL_REVIEWS, activeJobReq.defaultWeights);
 
-  const addToast = (candidateName, score, category) => {
+  const addNotificationToast = (candidateName, message, type = 'success') => {
     const newToast = {
       id: `toast-${Date.now()}-${Math.random()}`,
       candidateName,
-      score,
-      category
+      message,
+      type
     };
     setToasts(prev => [newToast, ...prev].slice(0, 4));
 
@@ -85,14 +92,36 @@ export default function App() {
   };
 
   const handleAddCandidate = (newCand) => {
-    setRawCandidates(prev => [newCand, ...prev]);
+    setRawCandidates(prev => [{ ...newCand, isRejected: false }, ...prev]);
 
     // Calculate score for notification
     const anonymized = anonymizeResume(newCand.rawText);
     const evaluation = scoreCandidateResume(anonymized.anonymizedText, activeJobReq, activeJobReq.defaultWeights);
     
     // Trigger animated toast notification!
-    addToast(newCand.name || newCand.fileName, evaluation.scores.overall, evaluation.category);
+    addNotificationToast(
+      newCand.name || newCand.fileName, 
+      `Resume Uploaded & Screened • Score: ${evaluation.scores.overall}% (${evaluation.category})`, 
+      'upload'
+    );
+  };
+
+  const handleRejectCandidate = (candidateId) => {
+    const targetCand = rawCandidates.find(c => c.id === candidateId);
+    const candidateName = targetCand ? targetCand.name.split('/')[0].trim() : candidateId;
+
+    setRawCandidates(prev => prev.map(c => c.id === candidateId ? { ...c, isRejected: true } : c));
+
+    addNotificationToast(candidateName, 'Candidate Rejected • Rejection notification logged.', 'reject');
+  };
+
+  const handleDeleteCandidate = (candidateId) => {
+    const targetCand = rawCandidates.find(c => c.id === candidateId);
+    const candidateName = targetCand ? targetCand.name.split('/')[0].trim() : candidateId;
+
+    setRawCandidates(prev => prev.filter(c => c.id !== candidateId));
+
+    addNotificationToast(candidateName, 'Candidate permanently purged from database.', 'delete');
   };
 
   const handleSaveJobReq = (updatedJobReq) => {
@@ -140,6 +169,8 @@ export default function App() {
             customWeights={activeJobReq.defaultWeights}
             evaluatedCandidates={evaluatedCandidates}
             onAddCandidate={handleAddCandidate}
+            onRejectCandidate={handleRejectCandidate}
+            onDeleteCandidate={handleDeleteCandidate}
           />
         )}
 
@@ -173,6 +204,8 @@ export default function App() {
             jobReq={activeJobReq}
             customWeights={activeJobReq.defaultWeights}
             onAddCandidate={handleAddCandidate}
+            onRejectCandidate={handleRejectCandidate}
+            onDeleteCandidate={handleDeleteCandidate}
           />
         )}
 
@@ -181,6 +214,8 @@ export default function App() {
             jobReq={activeJobReq}
             customWeights={activeJobReq.defaultWeights}
             candidatesList={evaluatedCandidates}
+            onRejectCandidate={handleRejectCandidate}
+            onDeleteCandidate={handleDeleteCandidate}
           />
         )}
 
